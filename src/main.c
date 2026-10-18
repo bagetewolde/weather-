@@ -13,6 +13,23 @@
 // Standard sea-level pressure in hPa for altitude calculation
 #define SEALEVEL_PRESSURE_HPA 1013.25f
 
+void print_gps_telemetry(gps_data_t *gps, const char *raw_sentence) {
+    printf("--- GPS MONITOR ---\n");
+    if (raw_sentence && raw_sentence[0] != '\0') {
+        printf("Raw NMEA: %s\n", raw_sentence);
+    }
+    
+    if (gps->valid) {
+        printf("Status   : FIX ACQUIRED (Active)\n");
+        printf("Latitude : %s\n", gps->latitude);
+        printf("Longitude: %s\n", gps->longitude);
+    } else {
+        printf("Status   : SEARCHING FOR SATELLITES...\n");
+    }
+    printf("-------------------\n\n");
+}
+
+
 int main(void) {
     scheduler_init();
     // 1. Initialize button as INPUT with internal pull-up enabled
@@ -85,6 +102,7 @@ char gps_buffer[82];
 if (soft_uart_available()) {
     if (soft_uart_read_line(gps_buffer, sizeof(gps_buffer)) > 0) {
         parse_nmea_sentence(gps_buffer, &my_gps);
+        print_gps_telemetry(&my_gps, gps_buffer);
     }
 }
             
