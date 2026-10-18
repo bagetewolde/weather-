@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <util/delay.h>
 #include <math.h> // Required for altitude calculation (pow function)
-
+#include "../include/scheduler.h"
 #define BUTTON_PIN PB0
 #define BUTTON_PORT PORTB
 #define BUTTON_DDR DDRB
@@ -14,6 +14,7 @@
 #define SEALEVEL_PRESSURE_HPA 1013.25f
 
 int main(void) {
+    scheduler_init();
     // 1. Initialize button as INPUT with internal pull-up enabled
     BUTTON_DDR &= ~(1 << BUTTON_PIN);  // Set as input
     BUTTON_PORT |= (1 << BUTTON_PIN); // Enable pull-up resistor
@@ -43,13 +44,15 @@ int main(void) {
 
     // 4. Initialize DHT22 sensor (e.g., on Port D, Pin 4 / PD4)
     // Make sure to add a 4.7k pull-up resistor between the DHT22 data pin and 3.3V!
-    dht22_init(&PORTD, &DDRD, &PIND, PD4);
+    dht_init();
 
     lcd_clear();
     float temp_bmp = 0.0f;
     float press_pa = 0.0f;
-    dht22_data_t dht_data;
-    char buffer[16];
+    uint16_t hum_raw = 0;
+    uint16_t temp_raw = 0;
+    uint8_t is_neg = 0;
+    char buffer[20];
 
     // Non-blocking timer variables for fast, smooth updates
     uint32_t last_refresh_tick = 0;
@@ -70,12 +73,12 @@ int main(void) {
         // --- Fast Non-Blocking Display Refresh ---
         // This keeps the loop spinning fast for the button, 
         // but throttles the I2C LCD updates so it updates smoothly without lagging.
-        if (get_system_ticks() - last_refresh_tick >= refresh_interval_ms) {
-            last_refresh_tick = get_system_ticks();
+        if (scheduler_now_ms() - last_refresh_tick >= refresh_interval_ms) {
+            last_refresh_tick = scheduler_now_ms();
 
             // Fetch live sensor data
             bmp280_read_float(&bmp280, &temp_bmp, &press_pa);
-            dht22_read(&dht_data);
+            
 
             switch (display_mode) {
                 case 0: {
@@ -89,13 +92,13 @@ int main(void) {
                     // Print Pressure
                     int32_t press_scaled = (int32_t)(press_hpa * 10.0f);
                     lcd_set_cursor(0, 0);
-                    snprintf(buffer, sizeof(buffer), "Press: %ld.%ld hP  ", press_scaled / 10, press_scaled % 10);
+                    snprintf(buffer, sizeof(buffer), "P: %ld.%2ld hP  ", press_scaled / 10, press_scaled % 10);
                     lcd_print(buffer);
 
                     // Print Altitude
                     int32_t alt_scaled = (int32_t)(altitude_m * 10.0f);
                     lcd_set_cursor(1, 0);
-                    snprintf(buffer, sizeof(buffer), "Alt: %ld.%ld m   ", alt_scaled / 10, alt_scaled % 10);
+                    snprintf(buffer, sizeof(buffer), "Alt: %ld.%2ld m   ", alt_scaled / 10, alt_scaled % 10);
                     lcd_print(buffer);
                     break;
                 }
@@ -109,19 +112,18 @@ int main(void) {
                     break;
 
                 case 2: {
-                    // --- Case 2: DHT22 Humidity & Temperature ---
-                    int32_t hum_scaled = (int32_t)(dht_data.humidity * 10.0f);
-                    int32_t dht_temp_scaled = (int32_t)(dht_data.temperature * 10.0f);
+                    if(dht_read(&temp_raw, &hum_raw, &is_neg)){
+                        // Print Humidity
+                            lcd_set_cursor(0, 0);
+                            snprintf(buffer, sizeof(buffer), "Hum: %u.%u %%  ", hum_raw / 10, hum_raw % 10);
+                            lcd_print(buffer);
 
-                    // Print Humidity
-                    lcd_set_cursor(0, 0);
-                    snprintf(buffer, sizeof(buffer), "Humid: %ld.%ld %%  ", hum_scaled / 10, hum_scaled % 10);
-                    lcd_print(buffer);
-
-                    // Print Temperature from DHT22
-                    lcd_set_cursor(1, 0);
-                    snprintf(buffer, sizeof(buffer), "DHT T: %ld.%ld C  ", dht_temp_scaled / 10, dht_temp_scaled % 10);
-                    lcd_print(buffer);
+                            // Print Temperature from DHT22
+                            lcd_set_cursor(1, 0);
+                            snprintf(buffer, sizeof(buffer), "T: %s%u.%u C  ", is_neg ? "-": "", temp_raw / 10, temp_raw % 10);
+                            lcd_print(buffer);
+                    }
+                    
                     break;
                 }
             }

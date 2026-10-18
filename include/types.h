@@ -21,8 +21,8 @@ typedef struct {
 } bme280_data_t;
 
 typedef struct {
-    int16_t temperature_centi_c;
-    uint16_t humidity_centi_pct;
+    float temperature;
+    float humidity;
     bool valid;
     uint32_t timestamp_ms;
 } dht22_data_t;

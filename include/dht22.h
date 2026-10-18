@@ -1,20 +1,11 @@
 #ifndef DHT22_H
 #define DHT22_H
-
+#include "config.h"
 #include <stdint.h>
-#include <stdbool.h>
-#include <avr/io.h>
-#include <util/delay.h>
-#include "../include/system.h"
 
-/* Structure to hold sensor readings */
-typedef struct {
-    float temperature;
-    float humidity;
-} dht22_data_t;
 
 /* Public API Functions */
-void dht22_init(volatile uint8_t *port, volatile uint8_t *ddr, volatile uint8_t *pin, uint8_t bit);
-status_t dht22_read(dht22_data_t *data);
+void dht_init(void);
+uint8_t dht_read(uint16_t *temperature, uint16_t *humidity, uint8_t *is_negative);
 
 #endif /* DHT22_H */

@@ -1,4 +1,4 @@
-#include "system.h"
+#include "../include/system.h"
 
 void system_init(void) {
     sei();
