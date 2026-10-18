@@ -78,6 +78,15 @@ int main(void) {
 
             // Fetch live sensor data
             bmp280_read_float(&bmp280, &temp_bmp, &press_pa);
+            // Inside your main while(1) loop:
+char gps_buffer[82];
+
+// Check if software serial has a complete NMEA line from the GPS
+if (soft_uart_available()) {
+    if (soft_uart_read_line(gps_buffer, sizeof(gps_buffer)) > 0) {
+        parse_nmea_sentence(gps_buffer, &my_gps);
+    }
+}
             
 
             switch (display_mode) {
@@ -106,10 +115,21 @@ int main(void) {
                 case 1:
                     // --- Case 1: GPS Data (Placeholder) ---
                     lcd_set_cursor(0, 0);
-                    lcd_print("GPS Data        ");
-                    lcd_set_cursor(1, 0);
-                    lcd_print("3deg-north      ");
-                    break;
+        if (my_gps.valid) {
+            snprintf(buffer, sizeof(buffer), "Lat: %s     ", my_gps.latitude);
+        } else {
+            snprintf(buffer, sizeof(buffer), "GPS: Searching..");
+        }
+        lcd_print(buffer);
+
+        lcd_set_cursor(1, 0);
+        if (my_gps.valid) {
+            snprintf(buffer, sizeof(buffer), "Lon: %s     ", my_gps.longitude);
+        } else {
+            snprintf(buffer, sizeof(buffer), "No Fix Yet    ");
+        }
+        lcd_print(buffer);
+        break;
 
                 case 2: {
                     if(dht_read(&temp_raw, &hum_raw, &is_neg)){
